@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mercado de Câmbio</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #ffffff; --fg: #0f1b2d; --muted: #6b7a90; --line: #e5e9f0;
+    --head: #f8fafc; --hover: #f1f5fb; --accent: #1f5eff;
+    --up: #0e9f6e; --up-bg: #e3f6ee; --down: #e02d3c; --down-bg: #fde8ea;
+    --shadow: 0 1px 2px rgba(15,27,45,.05), 0 4px 16px rgba(15,27,45,.04);
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1220; --card: #121a2b; --fg: #e6ebf5; --muted: #8b99b2; --line: #1f2a40;
+    --head: #0f1727; --hover: #17213a; --accent: #5b8cff;
+    --up: #34d399; --up-bg: rgba(52,211,153,.14); --down: #f87171; --down-bg: rgba(248,113,113,.14);
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font: 14px/1.45 "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 28px clamp(14px, 3vw, 40px) 40px; }
+
+  header { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:22px; }
+  h1 { margin:0; font-size:22px; font-weight:700; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; margin-top:2px; }
+  .tools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .live { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:999px;
+          background:var(--card); border:1px solid var(--line); font-size:12.5px; color:var(--muted); box-shadow:var(--shadow); }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--up); box-shadow:0 0 0 0 var(--up); animation:pulse 2s infinite; }
+  .live.err .dot { background:var(--down); animation:none; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(14,159,110,.5)} 70%{box-shadow:0 0 0 8px rgba(14,159,110,0)} 100%{box-shadow:0 0 0 0 rgba(14,159,110,0)} }
+  select, button { font:inherit; font-size:12.5px; color:var(--fg); background:var(--card); border:1px solid var(--line);
+                   border-radius:8px; padding:6px 10px; cursor:pointer; box-shadow:var(--shadow); }
+  button:hover, select:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  /* Cards em destaque */
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:18px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); }
+  .kpi .top { display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12.5px; font-weight:600; }
+  .kpi .val { font-size:28px; font-weight:700; letter-spacing:-.02em; margin:8px 0 6px; transition:color .3s; }
+  .kpi .val.flash-up { color:var(--up); } .kpi .val.flash-down { color:var(--down); }
+  .kpi .row { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); }
+
+  .pill { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:999px; font-weight:600; font-size:12.5px; }
+  .pill.up { color:var(--up); background:var(--up-bg); } .pill.down { color:var(--down); background:var(--down-bg); }
+  .pill svg { width:10px; height:10px; }
+
+  /* Tabela */
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; }
+  .panel-h { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .panel-h h2 { margin:0; font-size:15px; font-weight:700; }
+  .panel-h span { color:var(--muted); font-size:12.5px; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  .sortsel { display:none; }
+  th { background:var(--head); color:var(--muted); font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
+       padding:10px 14px; text-align:right; white-space:nowrap; cursor:pointer; user-select:none; border-bottom:1px solid var(--line); }
+  th.l, td.l { text-align:left; }
+  th:hover { color:var(--fg); }
+  th .s { display:inline-block; width:10px; margin-left:4px; opacity:.5; }
+  th.on { color:var(--accent); } th.on .s { opacity:1; }
+  td { padding:12px 14px; text-align:right; white-space:nowrap; border-bottom:1px solid var(--line); }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody tr { transition:background .15s; }
+  tbody tr:hover { background:var(--hover); }
+
+  .pair { display:flex; align-items:center; gap:12px; }
+  .badges { display:flex; }
+  .b { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:9.5px; font-weight:800; color:#fff;
+       border:2px solid var(--card); letter-spacing:.02em; }
+  .b + .b { margin-left:-10px; }
+  .pair a { color:var(--fg); font-weight:700; text-decoration:none; font-size:14px; }
+  .pair a:hover { color:var(--accent); }
+  .pair small { display:block; color:var(--muted); font-size:11.5px; font-weight:400; max-width:210px; overflow:hidden; text-overflow:ellipsis; }
+
+  td.last { font-weight:700; font-size:15px; }
+  td.last .v { padding:3px 8px; border-radius:6px; transition:background .2s; display:inline-block; }
+  td.last .v.fu { background:var(--up-bg); color:var(--up); } td.last .v.fd { background:var(--down-bg); color:var(--down); }
+  .pos { color:var(--up); font-weight:600; } .neg { color:var(--down); font-weight:600; }
+
+  .range { display:flex; flex-direction:column; align-items:stretch; gap:3px; width:130px; margin-left:auto; }
+  .bar { position:relative; height:5px; border-radius:99px; background:var(--line); }
+  .bar i { position:absolute; top:-3px; width:3px; height:11px; border-radius:2px; background:var(--accent); transform:translateX(-50%); }
+  .range div:last-child { display:flex; justify-content:space-between; font-size:10.5px; color:var(--muted); }
+
+  .skeleton td { height:56px; }
+  .skeleton td div { height:12px; border-radius:6px; background:linear-gradient(90deg,var(--line),var(--hover),var(--line)); background-size:200% 100%; animation:sh 1.2s infinite; }
+  @keyframes sh { to { background-position:-200% 0; } }
+
+  footer { margin-top:14px; color:var(--muted); font-size:12px; line-height:1.6; }
+  @media (min-width:1200px){ th, td { padding-left:20px; padding-right:20px; } .range { width:180px; } }
+  @media (max-width:1100px){ th:nth-child(3), td:nth-child(3), th:nth-child(9), td:nth-child(9) { display:none; } }
+  @media (max-width:860px){
+    .scroll { overflow:visible; }
+    table, tbody { display:block; }
+    thead { display:none; }
+    .sortsel { display:inline-block; }
+    th:nth-child(3), td:nth-child(3), th:nth-child(9), td:nth-child(9) { display:flex; }
+    tbody tr { display:grid; grid-template-columns:1fr 1fr; gap:10px 24px; padding:16px; border-bottom:1px solid var(--line); }
+    tbody tr:last-child { border-bottom:0; }
+    td { display:flex; justify-content:space-between; align-items:center; padding:0; border:0; text-align:right; }
+    td::before { content:attr(data-label); color:var(--muted); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-right:10px; }
+    td.l, td.rg { grid-column:1 / -1; }
+    td.l::before { display:none; }
+    td.rg::before { display:none; }
+    td.rg .range { width:100%; margin:0; }
+    .skeleton { display:block; padding:16px; }
+    .skeleton td { display:block; }
+    .skeleton td::before { display:none; }
+  }
+  @media (max-width:640px){ .wrap{padding-top:18px; padding-bottom:28px;} h1{font-size:19px;} .kpi .val{font-size:22px;} .cards{grid-template-columns:1fr 1fr; gap:10px;} .kpi{padding:12px 14px;} .kpi .top .pair{display:none;} .kpi .row .num:last-child{display:none;} .panel-h{flex-wrap:wrap; gap:8px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Mercado de Câmbio</h1>
+      <div class="sub">Principais pares de moedas em tempo real</div>
+    </div>
+    <div class="tools">
+      <div class="live" id="live"><span class="dot"></span><span id="msg">Carregando…</span></div>
+      <select id="intv" title="Intervalo de atualização">
+        <option value="10">10 s</option><option value="30" selected>30 s</option><option value="60">60 s</option>
+      </select>
+      <button id="theme" title="Alternar tema">🌓</button>
+      <button id="btn" class="primary">Atualizar</button>
+    </div>
+  </header>
+
+  <section class="cards" id="cards"></section>
+
+  <section class="panel">
+    <div class="panel-h"><h2>Mercados em um piscar de olhos</h2>
+      <span id="count"></span>
+      <select id="sortsel" class="sortsel" title="Ordenar por">
+        <option value="">Ordenar por…</option>
+        <option value="par">Par</option><option value="last">Último</option><option value="pct">Var. %</option>
+        <option value="chg">Var.</option><option value="high">Máxima</option><option value="low">Mínima</option>
+      </select>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="l" data-k="par">Par<span class="s"></span></th>
+            <th data-k="last">Último<span class="s"></span></th>
+            <th data-k="open">Abertura*<span class="s"></span></th>
+            <th data-k="high">Máxima<span class="s"></span></th>
+            <th data-k="low">Mínima<span class="s"></span></th>
+            <th data-k="chg">Var.<span class="s"></span></th>
+            <th data-k="pct">Var. %<span class="s"></span></th>
+            <th data-k="pos">Faixa do dia<span class="s"></span></th>
+            <th data-k="ts">Hora<span class="s"></span></th>
+          </tr>
+        </thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    *Abertura calculada como último − variação (aproximação do fechamento anterior). Os valores podem diferir ligeiramente de outras fontes.<br>
+    Fonte: AwesomeAPI · economia.awesomeapi.com.br. Apenas informativo, não constitui recomendação de investimento.
+  </footer>
+</div>
+
+<script>
+const PARES = [
+  ["EUR","USD"],["GBP","USD"],["USD","JPY"],["USD","CHF"],["AUD","USD"],
+  ["EUR","GBP"],["EUR","CHF"],["GBP","JPY"],["USD","BRL"],["EUR","BRL"],
+];
+const DESTAQUES = ["USD/BRL","EUR/BRL","EUR/USD","GBP/USD"];
+const URL_API = "https://economia.awesomeapi.com.br/last/" + PARES.map(p => p.join("-")).join(",");
+const COR = { USD:"#1f6f4a", EUR:"#1f4fbf", GBP:"#7a2ea8", JPY:"#c0392b", CHF:"#d1242f", AUD:"#0f7b8a", BRL:"#2e9b3f" };
+
+let rows = [], anterior = {}, ordem = { k:null, dir:1 }, timer = null, primeira = true;
+
+const dec = p => p.endsWith("JPY") ? 2 : 4;
+const fmt = (n, d, sinal) => {
+  const s = Math.abs(n).toLocaleString("pt-BR", { minimumFractionDigits:d, maximumFractionDigits:d });
+  return sinal ? (n >= 0 ? "+" : "−") + s : (n < 0 ? "−" : "") + s;
+};
+const seta = up => `<svg viewBox="0 0 10 10" fill="currentColor">${up ? '<path d="M5 1l4 7H1z"/>' : '<path d="M5 9L1 2h8z"/>'}</svg>`;
+const badges = par => par.split("/").map(c => `<span class="b" style="background:${COR[c]||"#555"}">${c}</span>`).join("");
+
+async function carregar() {
+  const live = document.getElementById("live"), msg = document.getElementById("msg");
+  try {
+    const r = await fetch(URL_API, { cache:"no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    rows = PARES.map(([a,b]) => {
+      const q = j[a+b]; if (!q) return null;
+      const last = +q.bid, chg = +q.varBid, high = +q.high, low = +q.low;
+      return { par:a+"/"+b, name:q.name, last, open:last-chg, high, low, chg, pct:+q.pctChange, ts:+q.timestamp,
+               pos: high > low ? (last-low)/(high-low) : .5 };
+    }).filter(Boolean);
+    desenhar();
+    live.classList.remove("err");
+    msg.textContent = "Atualizado às " + new Date().toLocaleTimeString("pt-BR");
+  } catch (e) {
+    live.classList.add("err");
+    msg.textContent = "Falha ao atualizar — tentando de novo";
+  }
+}
+
+function flashClass(par, last) {
+  const ant = anterior[par];
+  return ant === undefined || ant === last ? "" : (last > ant ? "fu" : "fd");
+}
+
+function desenhar() {
+  // Cards
+  const cards = document.getElementById("cards");
+  cards.innerHTML = DESTAQUES.map(p => {
+    const r = rows.find(x => x.par === p); if (!r) return "";
+    const d = dec(p), up = r.chg >= 0, f = flashClass(p, r.last);
+    return `<div class="kpi">
+      <div class="top"><span>${p}</span><span class="pair"><span class="badges">${badges(p)}</span></span></div>
+      <div class="val num ${f ? (f==="fu" ? "flash-up":"flash-down") : ""}">${fmt(r.last,d)}</div>
+      <div class="row"><span class="pill ${up?"up":"down"} num">${seta(up)}${fmt(r.pct,2,true)}%</span>
+        <span class="num">${fmt(r.chg,d,true)}</span></div>
+    </div>`;
+  }).join("");
+
+  // Tabela
+  const lista = rows.slice();
+  if (ordem.k) lista.sort((x,y) => {
+    const a = x[ordem.k], b = y[ordem.k];
+    return (typeof a === "string" ? a.localeCompare(b) : a-b) * ordem.dir;
+  });
+  document.getElementById("body").innerHTML = lista.map(r => {
+    const d = dec(r.par), up = r.chg >= 0, c = up ? "pos" : "neg", f = flashClass(r.par, r.last);
+    return `<tr>
+      <td class="l"><div class="pair"><span class="badges">${badges(r.par)}</span>
+        <div><a href="https://br.investing.com/currencies/${r.par.replace("/","-").toLowerCase()}" target="_blank" rel="noopener">${r.par}</a>
+        <small>${r.name}</small></div></div></td>
+      <td class="last num" data-label="Último"><span class="v ${f}">${fmt(r.last,d)}</span></td>
+      <td class="num" data-label="Abertura*">${fmt(r.open,d)}</td>
+      <td class="num" data-label="Máxima">${fmt(r.high,d)}</td>
+      <td class="num" data-label="Mínima">${fmt(r.low,d)}</td>
+      <td class="num ${c}" data-label="Var.">${fmt(r.chg,d,true)}</td>
+      <td data-label="Var. %"><span class="pill ${up?"up":"down"} num">${seta(up)}${fmt(r.pct,2,true)}%</span></td>
+      <td class="rg"><div class="range"><div class="bar"><i style="left:${(r.pos*100).toFixed(1)}%"></i></div>
+        <div class="num"><span>${fmt(r.low,d)}</span><span>${fmt(r.high,d)}</span></div></div></td>
+      <td class="num" data-label="Hora" style="color:var(--muted)">${new Date(r.ts*1000).toLocaleTimeString("pt-BR")}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("count").textContent = rows.length + " pares";
+  rows.forEach(r => anterior[r.par] = r.last);
+  setTimeout(() => document.querySelectorAll(".v.fu,.v.fd").forEach(e => e.classList.remove("fu","fd")), 1500);
+}
+
+document.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.k;
+  ordem = { k, dir: ordem.k === k ? -ordem.dir : 1 };
+  document.querySelectorAll("th").forEach(t => { t.classList.remove("on"); const s = t.querySelector(".s"); if (s) s.textContent = ""; });
+  th.classList.add("on"); th.querySelector(".s").textContent = ordem.dir === 1 ? "▲" : "▼";
+  desenhar();
+}));
+
+// Ordenação no celular (cabeçalho oculto)
+document.getElementById("sortsel").addEventListener("change", e => {
+  const k = e.target.value;
+  ordem = k ? { k, dir: k === "par" ? 1 : -1 } : { k:null, dir:1 };
+  desenhar();
+});
+
+// Tema (claro/escuro)
+const root = document.documentElement;
+try { const t = localStorage.getItem("tema"); if (t) root.dataset.theme = t; } catch(e) {}
+if (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches) root.dataset.theme = "dark";
+document.getElementById("theme").addEventListener("click", () => {
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("tema", root.dataset.theme); } catch(e) {}
+});
+
+function agendar() { clearInterval(timer); timer = setInterval(carregar, +document.getElementById("intv").value * 1000); }
+document.getElementById("intv").addEventListener("change", agendar);
+document.getElementById("btn").addEventListener("click", carregar);
+
+// Esqueleto de carregamento
+document.getElementById("body").innerHTML = Array(10).fill('<tr class="skeleton"><td colspan="9"><div></div></td></tr>').join("");
+carregar(); agendar();
+</script>
+</body>
+</html>
