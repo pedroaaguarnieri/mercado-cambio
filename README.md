@@ -2,6 +2,8 @@
 
 Painel de cotações de moedas em tempo real, em uma única página HTML, sem build e sem dependências. Mostra os principais pares de câmbio no formato da tabela "Mercados em um piscar de olhos".
 
+**Demo ao vivo:** https://pedroaaguarnieri.github.io/mercado-cambio/
+
 ## Recursos
 
 - 10 pares: EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, EUR/GBP, EUR/CHF, GBP/JPY, USD/BRL e EUR/BRL
